@@ -2,14 +2,18 @@ package main
 
 import (
 	"fmt"
-	"errors"
 )
 
 func handlerLogin(s *state, cmd command) error {
 	if len(cmd.args) == 0 {
-		return errors.New("No username provided, username is required")
+		return fmt.Errorf("No username provided, username is required --- Usage: %s <name>", cmd.name)
 	}
-	s.conf.SetUser(cmd.args[0])
-	fmt.Printf("User '%s' has been configured for login\n", cmd.args[0])
+
+	err := s.conf.SetUser(cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("couldn't set current user: %w", err)
+	}
+
+	fmt.Printf("User '%s' has been successfully configured for session\n", cmd.args[0])
 	return nil
 }
