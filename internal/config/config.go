@@ -12,24 +12,49 @@ type Config struct {
 	Current_user_name  string  `json:"current_user_name"`
 }
 
-func (c *Config) SetUser(user string) {
+func (c *Config) SetUser(user string) error {
 	c.Current_user_name = user
-	config_path := getConfigFilePath()
-	byte_data, _ := json.Marshal(c)  //should do error handling
+	config_path, err := getConfigFilePath()
+	if err != nil {
+		return err
+	}
+
+	byte_data, err := json.Marshal(c)
+	if err != nil {
+		return err
+	}
+
 	os.WriteFile(config_path, byte_data, 664)
+	return nil
 }
 
-func ReadConfig() Config {
+func ReadConfig() (Config, error) {
 	var conf Config
-	config_path := getConfigFilePath()
-	byte_data, _ := os.ReadFile(config_path)  //should do error handling
-	json.Unmarshal(byte_data, &conf)  //should do error handling
-	return conf
+	config_path, err := getConfigFilePath()
+	if err != nil {
+		return Config{}, err
+	}
+
+	byte_data, err := os.ReadFile(config_path)
+	if err != nil {
+		return Config{}, err
+	}
+
+	err = json.Unmarshal(byte_data, &conf)
+	if err != nil {
+		return Config{}, err
+	}
+
+	return conf, nil
 }
 
 
-func getConfigFilePath() string {
-	home_dir, _ := os.UserHomeDir()  //should do error handling
+func getConfigFilePath() (string, error) {
+	home_dir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
 	full_conf_file_path := home_dir+"/"+configFileName
-	return full_conf_file_path
+	return full_conf_file_path, nil
 }
