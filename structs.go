@@ -2,12 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/t6kke/gator/internal/config"
 )
-
-type state struct {
-	conf  *config.Config
-}
 
 type command struct {
 	name  string

@@ -1,10 +1,18 @@
 package main
-
+import _ "github.com/lib/pq"
 import (
 	"os"
 	"log"
+	"database/sql"
+
 	"github.com/t6kke/gator/internal/config"
+	"github.com/t6kke/gator/internal/database"
 )
+
+type state struct {
+	dbq   *database.Queries
+	conf  *config.Config
+}
 
 func main() {
 	cnf, err := config.ReadConfig() //in Go, to take the address of a value returned from a function, you'll need to store the return value in a variable first.
@@ -15,8 +23,20 @@ func main() {
 	var s state
 	s.conf = &cnf
 
+	db, err := sql.Open("postgres", s.conf.DB_url)
+	if err != nil {
+		log.Fatalf("failed to connect to db: %v", err)
+	}
+	defer db.Close()
+
+	dbQueries := database.New(db)
+	s.dbq = dbQueries
+
 	commands := newCommandsStruct()
 	commands.register("login", handlerLogin)
+	commands.register("register", handlerRegister)
+	commands.register("reset", handlerReset)
+	commands.register("users", handerUsers)
 
 	raw_args := os.Args
 	args := raw_args[1:]
