@@ -71,3 +71,29 @@ func handlerRegister(s *state, cmd command) error {
 
 	return nil
 }
+
+
+
+func handlerReset(s *state, cmd command) error {
+	new_ctx := context.Background()
+	err := s.dbq.DeleteAllUsers(new_ctx)
+	return err
+}
+
+
+func handerUsers(s *state, cmd command) error {
+	new_ctx := context.Background()
+	users, err := s.dbq.GetUsers(new_ctx)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	for _, user := range users {
+		if user.Name == s.conf.Current_user_name {
+			fmt.Println(user.Name, "(current)")
+		} else {
+			fmt.Println(user.Name)
+		}
+	}
+	return nil
+}
