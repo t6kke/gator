@@ -124,3 +124,46 @@ func handlerAgg(s *state, cmd command) error {
 
 	return nil
 }
+
+
+func handlerAddfeed(s *state, cmd command) error {
+	if len(cmd.args) < 2 {
+		return fmt.Errorf("Missing argumets --- Usage: %s <name> <url>", cmd.name)
+	}
+
+	new_ctx := context.Background()
+
+	current_user := s.conf.Current_user_name
+	user, err := s.dbq.GetUser(new_ctx, current_user)
+	if err != nil && err.Error() != "sql: no rows in result set" {
+		return fmt.Errorf("%w", err)
+	}
+	if err != nil {
+		return fmt.Errorf("Current user '%s' not found in database", current_user)
+	}
+
+	user_uuid := user.ID
+	feed_uuid := uuid.New()
+	current_time := time.Now()
+	feed_name := cmd.args[0]
+	feed_url := cmd.args[1]
+
+	new_feed := database.CreateFeedParams{
+		ID:        feed_uuid,
+		CreatedAt: current_time,
+		UpdatedAt: current_time,
+		Name:      feed_name,
+		Url:       feed_url,
+		UserID:    user_uuid,
+	}
+
+	feed, err := s.dbq.CreateFeed(new_ctx, new_feed)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Feed '%s' with url: '%s' has been successfully added to the database\n", feed_name, feed_url)
+	fmt.Println("DEBUG --- ", feed)
+
+	return nil
+}
