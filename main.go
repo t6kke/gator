@@ -1,9 +1,11 @@
 package main
-import _ "github.com/lib/pq"
+
 import (
 	"os"
 	"log"
 	"database/sql"
+
+	_ "github.com/lib/pq"
 
 	"github.com/t6kke/gator/internal/config"
 	"github.com/t6kke/gator/internal/database"
@@ -36,7 +38,8 @@ func main() {
 	commands.register("login", handlerLogin)
 	commands.register("register", handlerRegister)
 	commands.register("reset", handlerReset)
-	commands.register("users", handerUsers)
+	commands.register("users", handlerUsers)
+	commands.register("agg", handlerAgg)
 
 	raw_args := os.Args
 	args := raw_args[1:]

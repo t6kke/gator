@@ -81,7 +81,8 @@ func handlerReset(s *state, cmd command) error {
 }
 
 
-func handerUsers(s *state, cmd command) error {
+
+func handlerUsers(s *state, cmd command) error {
 	new_ctx := context.Background()
 	users, err := s.dbq.GetUsers(new_ctx)
 	if err != nil {
@@ -95,5 +96,31 @@ func handerUsers(s *state, cmd command) error {
 			fmt.Println(user.Name)
 		}
 	}
+	return nil
+}
+
+
+//just initial setup to confim that retreiving content is working as expected
+func handlerAgg(s *state, cmd command) error {
+	test_url := "https://www.wagslane.dev/index.xml"
+
+	new_ctx := context.Background()
+	feed, err := fetchFeed(new_ctx, test_url)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	fmt.Println(feed.Channel.Link)
+	fmt.Println(feed.Channel.Title)
+	fmt.Println(feed.Channel.Description)
+	fmt.Println("-------------------------------------------------------")
+	fmt.Println("items:")
+	for i, item := range feed.Channel.Item {
+		fmt.Printf("Item: %d --- Link: %s\n", i+1, item.Link)
+		fmt.Println(item.Title)
+		fmt.Println(item.Description)
+		fmt.Println("-------------------------------------------------------")
+	}
+
 	return nil
 }
