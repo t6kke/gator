@@ -41,6 +41,7 @@ func main() {
 	commands.register("users", handlerUsers)
 	commands.register("agg", handlerAgg)
 	commands.register("addfeed", handlerAddfeed)
+	commands.register("feeds", handlerFeeds)
 
 	raw_args := os.Args
 	args := raw_args[1:]

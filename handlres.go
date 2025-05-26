@@ -167,3 +167,22 @@ func handlerAddfeed(s *state, cmd command) error {
 
 	return nil
 }
+
+
+func handlerFeeds(s *state, cmd command) error {
+	new_ctx := context.Background()
+	feeds, err := s.dbq.GetFeeds(new_ctx)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if len(feeds) == 0 {
+		fmt.Println("No feeds found.")
+		return nil
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("Name: %s\nURL: %s\ncreated by: %s\n--------------\n", feed.Name, feed.Url, feed.Name_2)
+	}
+	return nil
+}
