@@ -81,7 +81,8 @@ func handlerReset(s *state, cmd command) error {
 }
 
 
-func handerUsers(s *state, cmd command) error {
+
+func handlerUsers(s *state, cmd command) error {
 	new_ctx := context.Background()
 	users, err := s.dbq.GetUsers(new_ctx)
 	if err != nil {
@@ -94,6 +95,94 @@ func handerUsers(s *state, cmd command) error {
 		} else {
 			fmt.Println(user.Name)
 		}
+	}
+	return nil
+}
+
+
+//just initial setup to confim that retreiving content is working as expected
+func handlerAgg(s *state, cmd command) error {
+	test_url := "https://www.wagslane.dev/index.xml"
+
+	new_ctx := context.Background()
+	feed, err := fetchFeed(new_ctx, test_url)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	fmt.Println(feed.Channel.Link)
+	fmt.Println(feed.Channel.Title)
+	fmt.Println(feed.Channel.Description)
+	fmt.Println("-------------------------------------------------------")
+	fmt.Println("items:")
+	for i, item := range feed.Channel.Item {
+		fmt.Printf("Item: %d --- Link: %s\n", i+1, item.Link)
+		fmt.Println(item.Title)
+		fmt.Println(item.Description)
+		fmt.Println("-------------------------------------------------------")
+	}
+
+	return nil
+}
+
+
+func handlerAddfeed(s *state, cmd command) error {
+	if len(cmd.args) < 2 {
+		return fmt.Errorf("Missing argumets --- Usage: %s <name> <url>", cmd.name)
+	}
+
+	new_ctx := context.Background()
+
+	current_user := s.conf.Current_user_name
+	user, err := s.dbq.GetUser(new_ctx, current_user)
+	if err != nil && err.Error() != "sql: no rows in result set" {
+		return fmt.Errorf("%w", err)
+	}
+	if err != nil {
+		return fmt.Errorf("Current user '%s' not found in database", current_user)
+	}
+
+	user_uuid := user.ID
+	feed_uuid := uuid.New()
+	current_time := time.Now()
+	feed_name := cmd.args[0]
+	feed_url := cmd.args[1]
+
+	new_feed := database.CreateFeedParams{
+		ID:        feed_uuid,
+		CreatedAt: current_time,
+		UpdatedAt: current_time,
+		Name:      feed_name,
+		Url:       feed_url,
+		UserID:    user_uuid,
+	}
+
+	feed, err := s.dbq.CreateFeed(new_ctx, new_feed)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Feed '%s' with url: '%s' has been successfully added to the database\n", feed_name, feed_url)
+	fmt.Println("DEBUG --- ", feed)
+
+	return nil
+}
+
+
+func handlerFeeds(s *state, cmd command) error {
+	new_ctx := context.Background()
+	feeds, err := s.dbq.GetFeeds(new_ctx)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if len(feeds) == 0 {
+		fmt.Println("No feeds found.")
+		return nil
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("Name: %s\nURL: %s\ncreated by: %s\n--------------\n", feed.Name, feed.Url, feed.Name_2)
 	}
 	return nil
 }
