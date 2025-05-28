@@ -126,21 +126,12 @@ func handlerAgg(s *state, cmd command) error {
 }
 
 
-func handlerAddfeed(s *state, cmd command) error {
+func handlerAddfeed(s *state, cmd command, user database.User) error {
 	if len(cmd.args) < 2 {
 		return fmt.Errorf("Missing argumets --- Usage: %s <name> <url>", cmd.name)
 	}
 
 	new_ctx := context.Background()
-
-	current_user := s.conf.Current_user_name
-	user, err := s.dbq.GetUser(new_ctx, current_user)
-	if err != nil && err.Error() != "sql: no rows in result set" {
-		return fmt.Errorf("%w", err)
-	}
-	if err != nil {
-		return fmt.Errorf("Current user '%s' not found in database", current_user)
-	}
 
 	user_uuid := user.ID
 	feed_uuid := uuid.New()
@@ -201,21 +192,13 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.args) == 0 {
 		return fmt.Errorf("No url provided, url is required --- Usage: %s <url>", cmd.name)
 	}
 
 	new_ctx := context.Background()
-	current_user := s.conf.Current_user_name
 	feed_url := cmd.args[0]
-	user, err := s.dbq.GetUser(new_ctx, current_user)
-	if err != nil && err.Error() != "sql: no rows in result set" {
-		return fmt.Errorf("%w", err)
-	}
-	if err != nil {
-		return fmt.Errorf("Current user '%s' not found in database", current_user)
-	}
 	feed, err := s.dbq.GetFeed(new_ctx, feed_url)
 	if err != nil && err.Error() != "sql: no rows in result set" {
 		return fmt.Errorf("%w", err)
@@ -247,16 +230,9 @@ func handlerFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
+func handlerFollowing(s *state, cmd command, user database.User) error {
 	new_ctx := context.Background()
 	current_user := s.conf.Current_user_name
-	user, err := s.dbq.GetUser(new_ctx, current_user)
-	if err != nil && err.Error() != "sql: no rows in result set" {
-		return fmt.Errorf("%w", err)
-	}
-	if err != nil {
-		return fmt.Errorf("Current user '%s' not found in database", current_user)
-	}
 
 	user_uuid := user.ID
 	follows, err := s.dbq.GetFeedFollowsForUser(new_ctx, user_uuid)
@@ -270,4 +246,22 @@ func handlerFollowing(s *state, cmd command) error {
 	}
 
 	return nil
+}
+
+
+
+
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	return func(s *state, cmd command) error {
+		new_ctx := context.Background()
+		current_user := s.conf.Current_user_name
+		user, err := s.dbq.GetUser(new_ctx, current_user)
+		if err != nil && err.Error() != "sql: no rows in result set" {
+			return fmt.Errorf("%w", err)
+		}
+		if err != nil {
+			return fmt.Errorf("Current user '%s' not found in database", current_user)
+		}
+		return handler(s, cmd, user)
+	}
 }
