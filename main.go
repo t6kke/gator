@@ -2,7 +2,9 @@ package main
 
 import (
 	"os"
+	"fmt"
 	"log"
+	"context"
 	"database/sql"
 
 	_ "github.com/lib/pq"
@@ -40,8 +42,11 @@ func main() {
 	commands.register("reset", handlerReset)
 	commands.register("users", handlerUsers)
 	commands.register("agg", handlerAgg)
-	commands.register("addfeed", handlerAddfeed)
+	commands.register("addfeed", middlewareLoggedIn(handlerAddfeed))
 	commands.register("feeds", handlerFeeds)
+	commands.register("follow", middlewareLoggedIn(handlerFollow))
+	commands.register("following", middlewareLoggedIn(handlerFollowing))
+	commands.register("unfollow", middlewareLoggedIn(handlerUnfollow))
 
 	raw_args := os.Args
 	args := raw_args[1:]
@@ -54,5 +59,22 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
+	}
+}
+
+
+
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	return func(s *state, cmd command) error {
+		new_ctx := context.Background()
+		current_user := s.conf.Current_user_name
+		user, err := s.dbq.GetUser(new_ctx, current_user)
+		if err != nil && err.Error() != "sql: no rows in result set" {
+			return fmt.Errorf("%w", err)
+		}
+		if err != nil {
+			return fmt.Errorf("Current user '%s' not found in database", current_user)
+		}
+		return handler(s, cmd, user)
 	}
 }

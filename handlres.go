@@ -28,8 +28,6 @@ func handlerLogin(s *state, cmd command) error {
 	return nil
 }
 
-
-
 func handlerRegister(s *state, cmd command) error {
 	if len(cmd.args) == 0 {
 		return fmt.Errorf("No username provided, username is required --- Usage: %s <name>", cmd.name)
@@ -72,15 +70,11 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
-
-
 func handlerReset(s *state, cmd command) error {
 	new_ctx := context.Background()
 	err := s.dbq.DeleteAllUsers(new_ctx)
 	return err
 }
-
-
 
 func handlerUsers(s *state, cmd command) error {
 	new_ctx := context.Background()
@@ -98,7 +92,6 @@ func handlerUsers(s *state, cmd command) error {
 	}
 	return nil
 }
-
 
 //just initial setup to confim that retreiving content is working as expected
 func handlerAgg(s *state, cmd command) error {
@@ -125,22 +118,12 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
-
-func handlerAddfeed(s *state, cmd command) error {
+func handlerAddfeed(s *state, cmd command, user database.User) error {
 	if len(cmd.args) < 2 {
 		return fmt.Errorf("Missing argumets --- Usage: %s <name> <url>", cmd.name)
 	}
 
 	new_ctx := context.Background()
-
-	current_user := s.conf.Current_user_name
-	user, err := s.dbq.GetUser(new_ctx, current_user)
-	if err != nil && err.Error() != "sql: no rows in result set" {
-		return fmt.Errorf("%w", err)
-	}
-	if err != nil {
-		return fmt.Errorf("Current user '%s' not found in database", current_user)
-	}
 
 	user_uuid := user.ID
 	feed_uuid := uuid.New()
@@ -165,9 +148,22 @@ func handlerAddfeed(s *state, cmd command) error {
 	fmt.Printf("Feed '%s' with url: '%s' has been successfully added to the database\n", feed_name, feed_url)
 	fmt.Println("DEBUG --- ", feed)
 
+	//including also following feed logic here, maybe this can be separated out into it's own function
+	new_feed_follow := database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: current_time,
+		UpdatedAt: current_time,
+		UserID:    user_uuid,
+		FeedID:    feed_uuid,
+	}
+	feed_follow, err := s.dbq.CreateFeedFollow(new_ctx, new_feed_follow)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Feed '%s' is successfully followed by: '%s'\n", feed_follow.FeedName, feed_follow.UserName)
+
 	return nil
 }
-
 
 func handlerFeeds(s *state, cmd command) error {
 	new_ctx := context.Background()
@@ -184,5 +180,91 @@ func handlerFeeds(s *state, cmd command) error {
 	for _, feed := range feeds {
 		fmt.Printf("Name: %s\nURL: %s\ncreated by: %s\n--------------\n", feed.Name, feed.Url, feed.Name_2)
 	}
+	return nil
+}
+
+func handlerFollow(s *state, cmd command, user database.User) error {
+	if len(cmd.args) == 0 {
+		return fmt.Errorf("No url provided, url is required --- Usage: %s <url>", cmd.name)
+	}
+
+	new_ctx := context.Background()
+	feed_url := cmd.args[0]
+	feed, err := s.dbq.GetFeed(new_ctx, feed_url)
+	if err != nil && err.Error() != "sql: no rows in result set" {
+		return fmt.Errorf("%w", err)
+	}
+	if err != nil {
+		return fmt.Errorf("Feed with url '%s' not found in database", feed_url)
+	}
+
+	new_uuid := uuid.New()
+	current_time := time.Now()
+	user_uuid := user.ID
+	feed_uuid := feed.ID
+
+	new_feed_follow := database.CreateFeedFollowParams{
+		ID:        new_uuid,
+		CreatedAt: current_time,
+		UpdatedAt: current_time,
+		UserID:    user_uuid,
+		FeedID:    feed_uuid,
+	}
+
+	feed_follow, err := s.dbq.CreateFeedFollow(new_ctx, new_feed_follow)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Feed '%s' is successfully followed by: '%s'\n", feed_follow.FeedName, feed_follow.UserName)
+
+	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.args) == 0 {
+		return fmt.Errorf("No url provided, url is required --- Usage: %s <url>", cmd.name)
+	}
+
+	new_ctx := context.Background()
+	feed_url := cmd.args[0]
+	feed, err := s.dbq.GetFeed(new_ctx, feed_url)
+	if err != nil && err.Error() != "sql: no rows in result set" {
+		return fmt.Errorf("%w", err)
+	}
+	if err != nil {
+		return fmt.Errorf("Feed with url '%s' not found in database", feed_url)
+	}
+
+	unfollow_parameters := database.UnfollowFeedParams{
+		UserID: user.ID,
+		FeedID: feed.ID,
+	}
+
+	_, err = s.dbq.UnfollowFeed(new_ctx, unfollow_parameters)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Feed successfully unfollowed")
+
+	return nil
+}
+
+func handlerFollowing(s *state, cmd command, user database.User) error {
+	new_ctx := context.Background()
+	current_user := s.conf.Current_user_name
+
+	user_uuid := user.ID
+	follows, err := s.dbq.GetFeedFollowsForUser(new_ctx, user_uuid)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("User '%s' is following:\n", current_user)
+	for _, name := range follows {
+		fmt.Println(name)
+	}
+
 	return nil
 }
