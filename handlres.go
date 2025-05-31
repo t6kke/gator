@@ -95,24 +95,22 @@ func handlerUsers(s *state, cmd command) error {
 
 //just initial setup to confim that retreiving content is working as expected
 func handlerAgg(s *state, cmd command) error {
-	test_url := "https://www.wagslane.dev/index.xml"
-
-	new_ctx := context.Background()
-	feed, err := fetchFeed(new_ctx, test_url)
-	if err != nil {
-		return fmt.Errorf("%w", err)
+	if len(cmd.args) == 0 {
+		return fmt.Errorf("No time interaval provided, interval is required --- Usage: %s <interval>\nExample options: '1s', '1m', '1h'", cmd.name)
 	}
 
-	fmt.Println(feed.Channel.Link)
-	fmt.Println(feed.Channel.Title)
-	fmt.Println(feed.Channel.Description)
-	fmt.Println("-------------------------------------------------------")
-	fmt.Println("items:")
-	for i, item := range feed.Channel.Item {
-		fmt.Printf("Item: %d --- Link: %s\n", i+1, item.Link)
-		fmt.Println(item.Title)
-		fmt.Println(item.Description)
-		fmt.Println("-------------------------------------------------------")
+	interval, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Collecting feeds every %v\n", interval)
+
+	ticker := time.NewTicker(interval)
+	for ; ; <-ticker.C {
+		err := scrapeFeeds(s)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
