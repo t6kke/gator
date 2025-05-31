@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"time"
+	"strconv"
 	"context"
 	"github.com/google/uuid"
 	"github.com/t6kke/gator/internal/database"
@@ -264,5 +265,42 @@ func handlerFollowing(s *state, cmd command, user database.User) error {
 		fmt.Println(name)
 	}
 
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	var nbr_of_posts int32
+	if len(cmd.args) == 0 {
+		nbr_of_posts = 2
+	}
+	if len(cmd.args) == 1 {
+		nbr, err := strconv.ParseInt(cmd.args[0],10,32)
+		if err != nil {
+			fmt.Printf("cound not parse the number of posts into specific value: %v\nDefaulting to 2 posts\n", err)
+			nbr_of_posts = 2
+		}
+		nbr_of_posts = int32(nbr)
+	}
+
+	new_ctx := context.Background()
+	user_uuid := user.ID
+
+	search_parameters := database.GetPostsForUserParams{
+		ID:    user_uuid,
+		Limit: nbr_of_posts,
+	}
+
+	posts, err := s.dbq.GetPostsForUser(new_ctx, search_parameters)
+	if err != nil {
+		return err
+	}
+
+	for _, post := range posts {
+		fmt.Println(post.Title)
+		fmt.Println(post.PublishedAt.Time)
+		fmt.Println(post.Url)
+		fmt.Println(post.Description.String)
+		fmt.Println("----------------------------------------")
+	}
 	return nil
 }
