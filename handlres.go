@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"time"
+	"strconv"
 	"context"
 	"github.com/google/uuid"
 	"github.com/t6kke/gator/internal/database"
@@ -95,24 +96,22 @@ func handlerUsers(s *state, cmd command) error {
 
 //just initial setup to confim that retreiving content is working as expected
 func handlerAgg(s *state, cmd command) error {
-	test_url := "https://www.wagslane.dev/index.xml"
-
-	new_ctx := context.Background()
-	feed, err := fetchFeed(new_ctx, test_url)
-	if err != nil {
-		return fmt.Errorf("%w", err)
+	if len(cmd.args) == 0 {
+		return fmt.Errorf("No time interaval provided, interval is required --- Usage: %s <interval>\nExample options: '1s', '1m', '1h'", cmd.name)
 	}
 
-	fmt.Println(feed.Channel.Link)
-	fmt.Println(feed.Channel.Title)
-	fmt.Println(feed.Channel.Description)
-	fmt.Println("-------------------------------------------------------")
-	fmt.Println("items:")
-	for i, item := range feed.Channel.Item {
-		fmt.Printf("Item: %d --- Link: %s\n", i+1, item.Link)
-		fmt.Println(item.Title)
-		fmt.Println(item.Description)
-		fmt.Println("-------------------------------------------------------")
+	interval, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Collecting feeds every %v\n", interval)
+
+	ticker := time.NewTicker(interval)
+	for ; ; <-ticker.C {
+		err := scrapeFeeds(s)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -266,5 +265,42 @@ func handlerFollowing(s *state, cmd command, user database.User) error {
 		fmt.Println(name)
 	}
 
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	var nbr_of_posts int32
+	if len(cmd.args) == 0 {
+		nbr_of_posts = 2
+	}
+	if len(cmd.args) == 1 {
+		nbr, err := strconv.ParseInt(cmd.args[0],10,32)
+		if err != nil {
+			fmt.Printf("cound not parse the number of posts into specific value: %v\nDefaulting to 2 posts\n", err)
+			nbr_of_posts = 2
+		}
+		nbr_of_posts = int32(nbr)
+	}
+
+	new_ctx := context.Background()
+	user_uuid := user.ID
+
+	search_parameters := database.GetPostsForUserParams{
+		UserID: user_uuid,
+		Limit:  nbr_of_posts,
+	}
+
+	posts, err := s.dbq.GetPostsForUser(new_ctx, search_parameters)
+	if err != nil {
+		return err
+	}
+
+	for _, post := range posts {
+		fmt.Println(post.Title)
+		fmt.Println(post.PublishedAt.Time)
+		fmt.Println(post.Url)
+		fmt.Println(post.Description.String)
+		fmt.Println("----------------------------------------")
+	}
 	return nil
 }
