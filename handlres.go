@@ -286,8 +286,8 @@ func handlerBrowse(s *state, cmd command, user database.User) error {
 	user_uuid := user.ID
 
 	search_parameters := database.GetPostsForUserParams{
-		ID:    user_uuid,
-		Limit: nbr_of_posts,
+		UserID: user_uuid,
+		Limit:  nbr_of_posts,
 	}
 
 	posts, err := s.dbq.GetPostsForUser(new_ctx, search_parameters)
